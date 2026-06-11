@@ -1,0 +1,38 @@
+# Compiled binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+task-tracker
+
+# Test binary and coverage output
+*.test
+*.out
+coverage.html
+
+# Go workspace file
+go.work
+go.work.sum
+
+# IDE / editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker files (not needed inside the image)
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Dependency vendor directory (using go mod instead)
+vendor/

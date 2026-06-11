@@ -1,0 +1,270 @@
+openapi: "3.0.3"
+info:
+  title: Task Tracker API
+  description: |
+    RESTful API untuk manajemen task sederhana.
+    Dibangun dengan Go + Gin, mendukung PostgreSQL (production) dan in-memory (development).
+  version: "1.0.0"
+  contact:
+    name: Task Tracker Backend
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development server
+  - url: http://0.0.0.0:8080/api/v1
+    description: Docker container
+
+tags:
+  - name: tasks
+    description: Operasi CRUD untuk task
+  - name: health
+    description: Status server
+
+paths:
+  /tasks:
+    get:
+      tags: [tasks]
+      summary: Ambil semua task
+      description: Mengembalikan seluruh task yang tersimpan, diurutkan berdasarkan `created_at` descending (terbaru di atas).
+      operationId: getAllTasks
+      responses:
+        "200":
+          description: Berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+                  count:
+                    type: integer
+                    example: 3
+              example:
+                data:
+                  - id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+                    title: "Write unit tests"
+                    description: "Cover all handler and repository functions."
+                    status: "pending"
+                    created_at: "2024-01-03T10:00:00Z"
+                    updated_at: "2024-01-03T10:00:00Z"
+                count: 1
+
+    post:
+      tags: [tasks]
+      summary: Buat task baru
+      description: Membuat task baru dengan status default `pending`.
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+            example:
+              title: "Implement REST API"
+              description: "Build CRUD endpoints using Gin framework."
+      responses:
+        "201":
+          description: Task berhasil dibuat
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Task"
+        "400":
+          description: Payload tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Key: 'CreateTaskRequest.Title' Error:Field validation for 'Title' failed on the 'required' tag"
+
+  /tasks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/TaskID"
+
+    get:
+      tags: [tasks]
+      summary: Ambil task berdasarkan ID
+      operationId: getTaskByID
+      responses:
+        "200":
+          description: Task ditemukan
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Task"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [tasks]
+      summary: Hapus task
+      description: Menghapus task secara permanen dari store.
+      operationId: deleteTask
+      responses:
+        "200":
+          description: Task berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "task deleted"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /tasks/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/TaskID"
+
+    patch:
+      tags: [tasks]
+      summary: Update status task
+      description: Mengubah status task menjadi `pending` atau `done`.
+      operationId: updateTaskStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStatusRequest"
+            example:
+              status: "done"
+      responses:
+        "200":
+          description: Status berhasil diupdate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Task"
+        "400":
+          description: Status tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Key: 'UpdateStatusRequest.Status' Error:Field validation for 'Status' failed on the 'oneof' tag"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /health:
+    get:
+      tags: [health]
+      summary: Health check
+      description: Digunakan untuk container orchestration probes (liveness/readiness).
+      operationId: healthCheck
+      responses:
+        "200":
+          description: Server berjalan normal
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+
+components:
+  parameters:
+    TaskID:
+      name: id
+      in: path
+      required: true
+      description: UUID task
+      schema:
+        type: string
+        format: uuid
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  schemas:
+    Task:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: UUID unik yang di-generate otomatis
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        title:
+          type: string
+          description: Judul task (1–100 karakter)
+          example: "Implement REST API"
+        description:
+          type: string
+          description: Deskripsi detail task (1–500 karakter)
+          example: "Build CRUD endpoints using Gin framework."
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+        created_at:
+          type: string
+          format: date-time
+          example: "2024-01-01T10:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          example: "2024-01-02T10:00:00Z"
+      required: [id, title, description, status, created_at, updated_at]
+
+    TaskStatus:
+      type: string
+      enum: [pending, done]
+      description: |
+        Status task:
+        - `pending` – belum selesai (default saat dibuat)
+        - `done`    – sudah selesai
+
+    CreateTaskRequest:
+      type: object
+      required: [title, description]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Design database schema"
+        description:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: "Draft the ER diagram and define all table relationships."
+
+    UpdateStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "task not found"
+
+  responses:
+    NotFound:
+      description: Task tidak ditemukan
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: "task not found"
