@@ -131,11 +131,11 @@ Handler tidak bergantung ke implementasi konkret, melainkan ke interface:
 
 ```go
 type TaskRepo interface {
-    GetAll() []model.Task
-    GetByID(id string) (model.Task, error)
-    Create(req model.CreateTaskRequest) model.Task
-    UpdateStatus(id string, status model.TaskStatus) (model.Task, error)
-    Delete(id string) error
+	GetAll() ([]model.Task, error)
+	GetByID(id string) (model.Task, error)
+	Create(req model.CreateTaskRequest) (model.Task, error)
+	UpdateStatus(id string, status model.TaskStatus) (model.Task, error)
+	Delete(id string) error
 }
 ```
 
@@ -216,9 +216,9 @@ Dokumentasi lengkap tersedia di [`docs/openapi.yaml`](docs/openapi.yaml).
 
 | Package | Test Cases | Total |
 |---|---|---|
-| `handler` | GetAll (2), GetByID (2), Create (4), UpdateStatus (3), Delete (2) | 13 |
+| `handler` | GetAll (2), GetByID (2), Create (4), UpdateStatus (3), Delete (2), ErrorPropagation (2) | 15 |
 | `repository` | GetAll (2), GetByID (2), Create (2), UpdateStatus (2), Delete (3) | 11 |
-| **Total** | | **23 tests** |
+| **Total** | | **26 tests** |
 
 Handler test menggunakan **mock repository** yang mengimplementasikan interface `TaskRepo` — tidak membutuhkan database atau server nyata.
 
