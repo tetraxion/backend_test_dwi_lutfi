@@ -1,0 +1,562 @@
+{
+  "info": {
+    "name": "Task Tracker API",
+    "description": "REST API untuk manajemen task — Technical Test PT. Tirtamas Coldstorindo Logistik.\n\n## Base URL\n`http://localhost:8080`\n\n## Cara Pakai\n1. Pastikan server sudah berjalan (`go run main.go` atau `docker compose up`)\n2. Gunakan variabel `{{base_url}}` yang sudah di-set ke `http://localhost:8080`\n3. Jalankan request sesuai urutan di folder untuk flow lengkap\n\n## Status Task\n- `pending` — belum selesai (default saat dibuat)\n- `done` — sudah selesai",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "task-tracker-api-collection"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string",
+      "description": "Base URL server. Ganti jika server berjalan di port/host berbeda."
+    },
+    {
+      "key": "task_id",
+      "value": "",
+      "type": "string",
+      "description": "ID task yang digunakan untuk request GetByID, UpdateStatus, Delete. Di-set otomatis oleh request Create Task."
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            },
+            "description": "Mengecek apakah server berjalan normal. Digunakan untuk liveness/readiness probe pada container orchestration."
+          },
+          "response": [
+            {
+              "name": "200 OK — Server running",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": \"ok\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Status is ok', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.status).to.eql('ok');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Tasks",
+      "item": [
+        {
+          "name": "Get All Tasks",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/tasks",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tasks"]
+            },
+            "description": "Mengambil seluruh task yang tersimpan, diurutkan berdasarkan `created_at` descending (terbaru di atas).\n\n**Response:**\n- `data` — array of task\n- `count` — jumlah total task"
+          },
+          "response": [
+            {
+              "name": "200 OK — List of tasks",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"count\": 3,\n  \"data\": [\n    {\n      \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n      \"title\": \"Write unit tests\",\n      \"description\": \"Cover all handler and repository functions.\",\n      \"status\": \"pending\",\n      \"created_at\": \"2024-01-03T10:00:00Z\",\n      \"updated_at\": \"2024-01-03T10:00:00Z\"\n    }\n  ]\n}"
+            },
+            {
+              "name": "200 OK — Empty list",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"count\": 0,\n  \"data\": []\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has data and count', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json).to.have.property('count');",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "    pm.expect(json.count).to.be.a('number');",
+                  "});",
+                  "pm.test('Count matches data length', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.count).to.eql(json.data.length);",
+                  "});",
+                  "// Simpan task_id pertama untuk dipakai request lain",
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.length > 0) {",
+                  "    pm.collectionVariables.set('task_id', json.data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Task By ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/tasks/{{task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tasks", "{{task_id}}"]
+            },
+            "description": "Mengambil satu task berdasarkan UUID.\n\n**Path Parameter:**\n- `id` — UUID task\n\n**Response:**\n- `200` — task ditemukan\n- `404` — task tidak ditemukan\n\n> Jalankan **Get All Tasks** terlebih dahulu agar `task_id` ter-set otomatis, atau isi manual di Collection Variables."
+          },
+          "response": [
+            {
+              "name": "200 OK — Task found",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"title\": \"Write unit tests\",\n    \"description\": \"Cover all handler and repository functions.\",\n    \"status\": \"pending\",\n    \"created_at\": \"2024-01-03T10:00:00Z\",\n    \"updated_at\": \"2024-01-03T10:00:00Z\"\n  }\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"task not found\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has data with correct fields', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json.data).to.have.property('id');",
+                  "    pm.expect(json.data).to.have.property('title');",
+                  "    pm.expect(json.data).to.have.property('status');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Task",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/tasks",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tasks"]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Buat Flutter App\",\n  \"description\": \"Implementasi Task Tracker menggunakan Flutter dengan Riverpod state management.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Membuat task baru. Status default otomatis `pending`.\n\n**Request Body:**\n| Field | Type | Wajib | Validasi |\n|---|---|---|---|\n| `title` | string | ✅ | 1–100 karakter |\n| `description` | string | ✅ | 1–500 karakter |\n\n**Response:**\n- `201` — task berhasil dibuat\n- `400` — validasi gagal (title/description kosong atau melebihi batas karakter)"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": {\n    \"id\": \"new-uuid-1234-5678-abcd-ef1234567890\",\n    \"title\": \"Buat Flutter App\",\n    \"description\": \"Implementasi Task Tracker menggunakan Flutter dengan Riverpod state management.\",\n    \"status\": \"pending\",\n    \"created_at\": \"2024-01-04T09:00:00Z\",\n    \"updated_at\": \"2024-01-04T09:00:00Z\"\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — Missing title",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Key: 'CreateTaskRequest.Title' Error:Field validation for 'Title' failed on the 'required' tag\"\n}"
+            },
+            {
+              "name": "400 Bad Request — Missing description",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Key: 'CreateTaskRequest.Description' Error:Field validation for 'Description' failed on the 'required' tag\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "pm.test('Response has task data', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json.data.status).to.eql('pending');",
+                  "    pm.expect(json.data.id).to.be.a('string');",
+                  "});",
+                  "// Simpan task_id dari task yang baru dibuat",
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) {",
+                  "    pm.collectionVariables.set('task_id', json.data.id);",
+                  "    console.log('task_id set to:', json.data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Task — Validation: Missing Title",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/v1/tasks",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tasks"]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Deskripsi tanpa title — harus gagal validasi\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Contoh request yang **sengaja gagal** karena `title` tidak dikirim.\n\nHarus mengembalikan `400 Bad Request`."
+          },
+          "response": [
+            {
+              "name": "400 Bad Request — Missing title",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Key: 'CreateTaskRequest.Title' Error:Field validation for 'Title' failed on the 'required' tag\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Response has error message', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Task Status — Mark as Done",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/v1/tasks/{{task_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tasks", "{{task_id}}", "status"]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"done\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Mengubah status task menjadi `done`.\n\n**Path Parameter:**\n- `id` — UUID task\n\n**Request Body:**\n| Field | Type | Nilai valid |\n|---|---|---|\n| `status` | string | `pending` \\| `done` |\n\n**Response:**\n- `200` — status berhasil diupdate, mengembalikan task terbaru\n- `400` — status tidak valid\n- `404` — task tidak ditemukan"
+          },
+          "response": [
+            {
+              "name": "200 OK — Status updated",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"title\": \"Buat Flutter App\",\n    \"description\": \"Implementasi Task Tracker menggunakan Flutter.\",\n    \"status\": \"done\",\n    \"created_at\": \"2024-01-04T09:00:00Z\",\n    \"updated_at\": \"2024-01-04T10:00:00Z\"\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — Invalid status",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Key: 'UpdateStatusRequest.Status' Error:Field validation for 'Status' failed on the 'oneof' tag\"\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"task not found\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Task status is done', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.status).to.eql('done');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Task Status — Mark as Pending",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/v1/tasks/{{task_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tasks", "{{task_id}}", "status"]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"pending\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Mengubah status task kembali menjadi `pending`."
+          },
+          "response": [
+            {
+              "name": "200 OK — Status updated to pending",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"status\": \"pending\",\n    \"updated_at\": \"2024-01-04T11:00:00Z\"\n  }\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Task status is pending', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.status).to.eql('pending');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Task Status — Invalid Status",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/v1/tasks/{{task_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tasks", "{{task_id}}", "status"]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in_progress\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Contoh request yang **sengaja gagal** karena `in_progress` bukan nilai valid.\n\nNilai valid hanya: `pending` atau `done`."
+          },
+          "response": [
+            {
+              "name": "400 Bad Request — Invalid status value",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"Key: 'UpdateStatusRequest.Status' Error:Field validation for 'Status' failed on the 'oneof' tag\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "pm.test('Response has error message', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('error');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Task",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/tasks/{{task_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tasks", "{{task_id}}"]
+            },
+            "description": "Menghapus task secara permanen berdasarkan UUID.\n\n**Path Parameter:**\n- `id` — UUID task\n\n**Response:**\n- `200` — task berhasil dihapus\n- `404` — task tidak ditemukan\n\n> ⚠️ Operasi ini **tidak bisa dibatalkan**."
+          },
+          "response": [
+            {
+              "name": "200 OK — Task deleted",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"task deleted\"\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"task not found\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test('Response has deleted message', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.message).to.eql('task deleted');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Task — Not Found",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/v1/tasks/00000000-0000-0000-0000-000000000000",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "tasks", "00000000-0000-0000-0000-000000000000"]
+            },
+            "description": "Contoh request **Delete** dengan ID yang tidak ada.\n\nHarus mengembalikan `404 Not Found`."
+          },
+          "response": [
+            {
+              "name": "404 Not Found",
+              "status": "Not Found",
+              "code": 404,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"error\": \"task not found\"\n}"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "pm.test('Response has error message', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('error');",
+                  "    pm.expect(json.error).to.eql('task not found');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

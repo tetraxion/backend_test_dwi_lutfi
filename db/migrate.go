@@ -13,6 +13,9 @@ import (
 
 // DSN generate connection string PostgreSQL dari environment variables
 func DSN() string {
+	if dbURL := os.Getenv("DATABASE_URL"); dbURL != "" {
+		return dbURL
+	}
 	host := envOr("DB_HOST", "localhost")
 	port := envOr("DB_PORT", "5432")
 	user := envOr("DB_USER", "postgres")

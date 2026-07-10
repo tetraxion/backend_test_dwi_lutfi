@@ -15,9 +15,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const port = "8080"
-
 func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	ctx := context.Background()
 
 	// Pilih storage backend berdasarkan env USE_POSTGRES
